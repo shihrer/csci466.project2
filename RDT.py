@@ -67,7 +67,8 @@ class RDT:
 
     def response(self):
         answer = None
-        while answer == None:
+        garble = False
+        while answer is None:
             byte_ans = self.network.udt_receive()
             self.byte_buffer += byte_ans
             if (len(self.byte_buffer) < Packet.length_S_length):
@@ -76,7 +77,10 @@ class RDT:
             if len(self.byte_buffer) < length:
                 continue
             p = Packet.from_byte_S(self.byte_buffer[0:length])
-            answer = p.msg_S
+            if p.msg_S is "0":
+                answer = False
+            else:
+                answer = True
             garble = Packet.corrupt(self.byte_buffer)
             self.byte_buffer = self.byte_buffer[length:]
         return answer, garble
@@ -113,8 +117,7 @@ class RDT:
             ack, garble = self.response()
             if garble:
                 print("Packet corrupt, resend")
-                print(garble)
-            elif ack is "0":
+            elif not ack:
                 print("NAK received, resend")
             else:
                 print("Recieved ACK, move on to next.")
