@@ -81,7 +81,7 @@ class RDT:
                 answer = False
             else:
                 answer = True
-            garble = Packet.corrupt(self.byte_buffer)
+            garble = Packet.corrupt(p.get_byte_S())
             self.byte_buffer = self.byte_buffer[length:]
         return answer, garble
 
@@ -115,11 +115,7 @@ class RDT:
         while True:
             self.network.udt_send(p.get_byte_S())
             ack, garble = self.response()
-            if garble:
-                print("Packet corrupt, resend")
-            elif not ack:
-                print("NAK received, resend")
-            else:
+            if ack and not garble:
                 print("Recieved ACK, move on to next.")
                 self.toggle_seq()
                 break
@@ -148,7 +144,7 @@ class RDT:
                 answer = Packet(self.seq_num, "1")
                 self.network.udt_send(answer.get_byte_S())
             elif p.seq_num == self.seq_num:
-                print('Received new.  ACK and increment seq.')
+                print('Received new.  Send ACK and increment seq.')
                 answer = Packet(self.seq_num, "1")
                 self.network.udt_send(answer.get_byte_S())
                 self.toggle_seq()
