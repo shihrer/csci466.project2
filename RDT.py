@@ -134,10 +134,10 @@ class RDT:
             # create packet from buffer content and add to return string
             p = Packet.from_byte_S(self.byte_buffer[0:length])
             if Packet.corrupt(self.byte_buffer):
-                answer = Packet(self.seq_num, 0)
+                answer = Packet(self.seq_num, "0")
                 self.network.udt_send(answer.get_byte_S())
             elif p.seq_num == self.seq_num:
-                answer = Packet(self.seq_num, 1)
+                answer = Packet(self.seq_num, "1")
                 self.network.udt_send(answer.get_byte_S())
             else:
                 ret_S = p.msg_S
