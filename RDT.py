@@ -67,13 +67,18 @@ class RDT:
 
     def response(self):
         answer = None
-        garble = False
-        while answer is None:
+        while answer == None:
             byte_ans = self.network.udt_receive()
             self.byte_buffer += byte_ans
-            p = Packet.from_byte_S(self.byte_buffer[:Packet.length_S_length])
+            if (len(self.byte_buffer) < Packet.length_S_length):
+                continue
+            length = int(self.byte_buffer[:Packet.length_S_length])
+            if len(self.byte_buffer) < length:
+                continue
+            p = Packet.from_byte_S(self.byte_buffer[0:length])
             answer = p.msg_S
             garble = Packet.corrupt(self.byte_buffer)
+            self.byte_buffer = self.byte_buffer[length:]
         return answer, garble
 
     def rdt_1_0_send(self, msg_S):
