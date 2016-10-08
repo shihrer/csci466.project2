@@ -5,10 +5,10 @@ import hashlib
 
 
 class Packet:
-    ## the number of bytes used to store packet length
+    # the number of bytes used to store packet length
     seq_num_S_length = 10
     length_S_length = 10
-    ## length of md5 checksum in hex
+    # length of md5 checksum in hex
     checksum_length = 32
 
     def __init__(self, seq_num, msg_S):
@@ -27,12 +27,11 @@ class Packet:
 
     def get_byte_S(self):
         # convert sequence number of a byte field of seq_num_S_length bytes
-        print(self.seq_num)
         seq_num_S = str(self.seq_num).zfill(self.seq_num_S_length)
         # convert length to a byte field of length_S_length bytes
         length_S = str(self.length_S_length + len(seq_num_S) + self.checksum_length + len(self.msg_S)).zfill(
             self.length_S_length)
-        # compute the checksum
+        # compute the checks0um
         checksum = hashlib.md5((length_S + seq_num_S + self.msg_S).encode('utf-8'))
         checksum_S = checksum.hexdigest()
         # compile into a string
@@ -56,7 +55,7 @@ class Packet:
 
 class RDT:
     ## latest sequence number used in a packet
-    seq_num = 1
+    seq_num = 0
     ## buffer of bytes read from network
     byte_buffer = ''
 
@@ -68,18 +67,13 @@ class RDT:
 
     def response(self):
         answer = None
-        while answer == None:
+        garble = False
+        while answer is None:
             byte_ans = self.network.udt_receive()
             self.byte_buffer += byte_ans
-            if (len(self.byte_buffer) < Packet.length_S_length):
-                continue
-            length = int(self.byte_buffer[:Packet.length_S_length])
-            if len(self.byte_buffer) < length:
-                continue
-            p = Packet.from_byte_S(self.byte_buffer[0:length])
+            p = Packet.from_byte_S(self.byte_buffer[:Packet.length_S_length])
             answer = p.msg_S
             garble = Packet.corrupt(self.byte_buffer)
-            self.byte_buffer = self.byte_buffer[length:]
         return answer, garble
 
     def rdt_1_0_send(self, msg_S):
@@ -109,12 +103,18 @@ class RDT:
 
     def rdt_2_1_send(self, msg_S):
         p = Packet(self.seq_num, msg_S)
-        self.network.udt_send(p.get_byte_S())
-        ack, garble = self.response()
-        while garble or ack == "0":
+        while True:
             self.network.udt_send(p.get_byte_S())
             ack, garble = self.response()
-        self.seq_num += 1
+            if garble:
+                print("Packet corrupt, resend")
+                print(garble)
+            elif ack is "0":
+                print("NAK received, resend")
+            else:
+                print("Recieved ACK, move on to next.")
+                self.toggle_seq()
+                break
 
     def rdt_2_1_receive(self):
         ret_S = None
@@ -135,15 +135,26 @@ class RDT:
                 print("Corrupt packet seq num: " + str(self.seq_num))
                 answer = Packet(self.seq_num, "0")
                 self.network.udt_send(answer.get_byte_S())
-            elif p.seq_num == self.seq_num:
-                print('Already received')
+            elif p.seq_num != self.seq_num:
+                print('Already received packet.  ACK again.')
                 answer = Packet(self.seq_num, "1")
                 self.network.udt_send(answer.get_byte_S())
-            else:
-                ret_S = p.msg_S if (ret_S is None) else ret_S + p.msg_S
+            elif p.seq_num == self.seq_num:
+                print('Received new.  ACK and increment seq.')
+                answer = Packet(self.seq_num, "1")
+                self.network.udt_send(answer.get_byte_S())
+                self.toggle_seq()
+
+            ret_S = p.msg_S if (ret_S is None) else ret_S + p.msg_S
             # remove the packet bytes from the buffer
             self.byte_buffer = self.byte_buffer[length:]
             # if this was the last packet, will return on the next iteration
+
+    def toggle_seq(self):
+        if self.seq_num is 0:
+            self.seq_num = 1
+        else:
+            self.seq_num = 0
 
     def rdt_3_0_send(self, msg_S):
         pass
