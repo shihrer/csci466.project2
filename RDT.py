@@ -17,8 +17,9 @@ class Packet:
 
     @classmethod
     def from_byte_S(self, byte_S):
-        if Packet.corrupt(byte_S):
-            raise RuntimeError('Cannot initialize Packet: byte_S is corrupt')
+        #if Packet.corrupt(byte_S):
+        # raise RuntimeError('Cannot initialize Packet: byte_S is corrupt')
+
         # extract the fields
         seq_num = int(byte_S[Packet.length_S_length: Packet.length_S_length + Packet.seq_num_S_length])
         msg_S = byte_S[Packet.length_S_length + Packet.seq_num_S_length + Packet.checksum_length:]
@@ -26,6 +27,7 @@ class Packet:
 
     def get_byte_S(self):
         # convert sequence number of a byte field of seq_num_S_length bytes
+        print(self.seq_num)
         seq_num_S = str(self.seq_num).zfill(self.seq_num_S_length)
         # convert length to a byte field of length_S_length bytes
         length_S = str(self.length_S_length + len(seq_num_S) + self.checksum_length + len(self.msg_S)).zfill(
@@ -52,6 +54,7 @@ class Packet:
         return checksum_S != computed_checksum_S
 
 
+
 class RDT:
     ## latest sequence number used in a packet
     seq_num = 1
@@ -63,6 +66,22 @@ class RDT:
 
     def disconnect(self):
         self.network.disconnect()
+
+    def response(self):
+        answer = None
+        while answer == None:
+            byte_ans = self.network.udt_receive()
+            self.byte_buffer += byte_ans
+            if(len(self.byte_buffer) < Packet.length_S_length):
+                continue
+            length = int(self.byte_buffer[:Packet.length_S_length])
+            if len(self.byte_buffer) < length:
+                continue
+            p = Packet.from_byte_S(self.byte_buffer[0:length])
+            answer = p.msg_S
+            garble = Packet.corrupt(self.byte_buffer)
+            self.byte_buffer = self.byte_buffer[length:]
+        return answer, garble
 
     def rdt_1_0_send(self, msg_S):
         p = Packet(self.seq_num, msg_S)
@@ -91,12 +110,13 @@ class RDT:
 
     def rdt_2_1_send(self, msg_S):
         p = Packet(self.seq_num, msg_S)
-        self.seq_num += 1
         self.network.udt_send(p.get_byte_S())
-        ack = self.network.udt_receive()
-        while ack==0:
+        ack, garble = self.response()
+        while garble or ack==0:
             self.network.udt_send(p.get_byte_S())
-            ack = self.network.udt_receive()
+            ack, garble = self.response()
+        self.seq_num += 1
+
 
     def rdt_2_1_receive(self):
         ret_S = None
@@ -113,17 +133,17 @@ class RDT:
                 return ret_S  # not enough bytes to read the whole packet
             # create packet from buffer content and add to return string
             p = Packet.from_byte_S(self.byte_buffer[0:length])
-            #check for corruption
-            if p.corrupt(p):# if corrupt send NACK
-                ack = Packet(self.seq_num, 0)
-                self.network.udt_send(ack.get_byte_S())
-            ret_S = p.msg_S if (ret_S is None) else ret_S + p.msg_S
+            if Packet.corrupt(self.byte_buffer):
+                answer = Packet(self.seq_num, 0)
+                self.network.udt_send(answer.get_byte_S())
+            elif p.seq_num == self.seq_num:
+                answer = Packet(self.seq_num, 1)
+                self.network.udt_send(answer.get_byte_S())
+            else:
+                ret_S = p.msg_S
             # remove the packet bytes from the buffer
             self.byte_buffer = self.byte_buffer[length:]
-            ack = Packet(self.seq_num, 1)#if not corrupt send ACK
-            self.network.udt_send(ack.get_byte_S())
             # if this was the last packet, will return on the next iteration
-        pass
 
     def rdt_3_0_send(self, msg_S):
         pass
