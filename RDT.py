@@ -17,8 +17,8 @@ class Packet:
 
     @classmethod
     def from_byte_S(self, byte_S):
-        # if Packet.corrupt(byte_S):
-        # raise RuntimeError('Cannot initialize Packet: byte_S is corrupt')
+        if Packet.corrupt(byte_S):
+            raise RuntimeError('Cannot initialize Packet: byte_S is corrupt')
 
         # extract the fields
         seq_num = int(byte_S[Packet.length_S_length: Packet.length_S_length + Packet.seq_num_S_length])
@@ -42,8 +42,7 @@ class Packet:
         # extract the fields
         length_S = byte_S[0:Packet.length_S_length]
         seq_num_S = byte_S[Packet.length_S_length: Packet.seq_num_S_length + Packet.seq_num_S_length]
-        checksum_S = byte_S[
-                     Packet.seq_num_S_length + Packet.seq_num_S_length: Packet.seq_num_S_length + Packet.length_S_length + Packet.checksum_length]
+        checksum_S = byte_S[Packet.seq_num_S_length + Packet.seq_num_S_length: Packet.seq_num_S_length + Packet.length_S_length + Packet.checksum_length]
         msg_S = byte_S[Packet.seq_num_S_length + Packet.seq_num_S_length + Packet.checksum_length:]
 
         # compute the checksum locally
@@ -66,23 +65,13 @@ class RDT:
         self.network.disconnect()
 
     def response(self):
-        answer = None
-        garble = False
-        while answer is None:
-            byte_ans = self.network.udt_receive()
-            self.byte_buffer += byte_ans
-            if (len(self.byte_buffer) < Packet.length_S_length):
-                continue
-            length = int(self.byte_buffer[:Packet.length_S_length])
-            if len(self.byte_buffer) < length:
-                continue
-            p = Packet.from_byte_S(self.byte_buffer[0:length])
-            if p.msg_S is "0":
-                answer = False
-            else:
+        answer = False
+        byte_response = self.network.udt_receive()
+        garble = Packet.corrupt(byte_response)
+        if not garble:
+            p = Packet.from_byte_S(byte_response)
+            if p.msg_S is "1":
                 answer = True
-            garble = Packet.corrupt(p.get_byte_S())
-            self.byte_buffer = self.byte_buffer[length:]
         return answer, garble
 
     def rdt_1_0_send(self, msg_S):
@@ -98,46 +87,65 @@ class RDT:
         while True:
             # check if we have received enough bytes
             if len(self.byte_buffer) < Packet.length_S_length:
-                return ret_S  # not enough bytes to read packet length
+                break  # not enough bytes to read packet length
             # extract length of packet
             length = int(self.byte_buffer[:Packet.length_S_length])
             if len(self.byte_buffer) < length:
-                return ret_S  # not enough bytes to read the whole packet
+                break  # not enough bytes to read the whole packet
             # create packet from buffer content and add to return string
             p = Packet.from_byte_S(self.byte_buffer[0:length])
             ret_S = p.msg_S if (ret_S is None) else ret_S + p.msg_S
             # remove the packet bytes from the buffer
             self.byte_buffer = self.byte_buffer[length:]
             # if this was the last packet, will return on the next iteration
+        return ret_S
 
     def rdt_2_1_send(self, msg_S):
         p = Packet(self.seq_num, msg_S)
-        while True:
+        current_seq = self.seq_num
+
+        while current_seq == self.seq_num:
             self.network.udt_send(p.get_byte_S())
-            ack, garble = self.response()
-            if ack and not garble:
-                print("Recieved ACK, move on to next.")
-                self.toggle_seq()
-                break
+            response = None
+            while not response:
+                response = self.network.udt_receive()
+            msg_length = int(response[:Packet.length_S_length])
+            self.byte_buffer = response[msg_length:]
+            print("Buffer: " + self.byte_buffer)
+            print("Received response: " + response)
+            if not Packet.corrupt(response[:msg_length]):
+                response_p = Packet.from_byte_S(response[:msg_length])
+                if response_p.msg_S is "1":
+                    print("Recieved ACK, move on to next.")
+                    self.toggle_seq()
+                else:
+                    self.byte_buffer = ''
+                    print("NAK received")
+            else:
+                self.byte_buffer = ''
+                print("Corrupted ACK")
 
     def rdt_2_1_receive(self):
         ret_S = None
         byte_S = self.network.udt_receive()
         self.byte_buffer += byte_S
+        current_seq = self.seq_num
+        # Don't move on until seq_num has been toggled
         # keep extracting packets - if reordered, could get more than one
-        while True:
+        while current_seq == self.seq_num:
             # check if we have received enough bytes
             if len(self.byte_buffer) < Packet.length_S_length:
-                return ret_S  # not enough bytes to read packet length
+                break  # not enough bytes to read packet length
             # extract length of packet
             length = int(self.byte_buffer[:Packet.length_S_length])
             if len(self.byte_buffer) < length:
-                return ret_S  # not enough bytes to read the whole packet
+                break  # not enough bytes to read the whole packet
             # create packet from buffer content and add to return string
             p = Packet.from_byte_S(self.byte_buffer[0:length])
             if Packet.corrupt(self.byte_buffer):
-                print("Corrupt packet seq num: " + str(self.seq_num))
+                print("Corrupt packet, sending NAK.")
                 answer = Packet(self.seq_num, "0")
+                print("NAK Packet: " + answer.get_byte_S())
                 self.network.udt_send(answer.get_byte_S())
             elif p.seq_num != self.seq_num:
                 print('Already received packet.  ACK again.')
@@ -153,6 +161,7 @@ class RDT:
             # remove the packet bytes from the buffer
             self.byte_buffer = self.byte_buffer[length:]
             # if this was the last packet, will return on the next iteration
+        return ret_S
 
     def toggle_seq(self):
         if self.seq_num is 0:
