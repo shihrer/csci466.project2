@@ -170,12 +170,6 @@ class RDT:
             # if this was the last packet, will return on the next iteration
         return ret_S
 
-    def toggle_seq(self):
-        if self.seq_num is 0:
-            self.seq_num = 1
-        else:
-            self.seq_num = 0
-
     def rdt_3_0_send(self, msg_S):
         pass
 
