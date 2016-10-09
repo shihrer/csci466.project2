@@ -56,8 +56,6 @@ class Packet:
 class RDT:
     ## latest sequence number used in a packet
     seq_num = 0
-    timeout = 1
-    overtime = False
     ## buffer of bytes read from network
     byte_buffer = ''
 
@@ -112,13 +110,17 @@ class RDT:
             self.network.udt_send(p.get_byte_S())
             response = None
             timer = time.time()
-            self.overtime = False
+            overtime = False
             while not response:
                 response = self.network.udt_receive()
-                if timer + self.timeout < time.time():
-                    self.overtime = True
+                if response:
                     break
-            if self.overtime:
+                timer2 = time.time()
+                if timer + 1 < timer2:
+                    overtime = True
+                    break
+            if overtime:
+                self.byte_buffer = ''
                 continue
             msg_length = int(response[:Packet.length_S_length])
             self.byte_buffer = response[msg_length:]
