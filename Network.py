@@ -6,7 +6,7 @@ import random
 import RDT
 
 
-# Provides an abstraction for the network layer
+## Provides an abstraction for the network layer
 class NetworkLayer:
     # configuration parameters
     prob_pkt_loss = 0
@@ -95,7 +95,7 @@ class NetworkLayer:
                 #                 print (threading.currentThread().getName() + ': Ending')
                 return
 
-    # Deliver collected data to client
+    ## Deliver collected data to client
     def udt_receive(self):
         with self.lock:
             ret_S = self.buffer_S
@@ -122,3 +122,8 @@ if __name__ == '__main__':
         print(network.udt_receive())
         network.udt_send('MSG_FROM_SERVER')
         network.disconnect()
+
+
+
+
+

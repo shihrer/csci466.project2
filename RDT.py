@@ -94,7 +94,7 @@ class RDT:
                 break  # not enough bytes to read the whole packet
             # create packet from buffer content and add to return string
             p = Packet.from_byte_S(self.byte_buffer[0:length])
-            ret_S = p.msg_S if (ret_S is None) else ret_S + p.msg_S
+            ret_S = p.msg_S #if (ret_S is None) else ret_S + p.msg_S
             # remove the packet bytes from the buffer
             self.byte_buffer = self.byte_buffer[length:]
             # if this was the last packet, will return on the next iteration
@@ -105,7 +105,7 @@ class RDT:
         current_seq = self.seq_num
 
         while current_seq == self.seq_num:
-            print('Sending packet')
+            # print('Sending packet')
             self.network.udt_send(p.get_byte_S())
             response = None
             while not response:
@@ -117,19 +117,19 @@ class RDT:
             if not Packet.corrupt(response[:msg_length]):
                 response_p = Packet.from_byte_S(response[:msg_length])
                 if response_p.msg_S is "1":
-                    print("Recieved ACK, move on to next.")
+                    # print("Received ACK, move on to next.")
                     self.seq_num += 1
                 elif response_p.msg_S is "0":
                     self.byte_buffer = ''
-                    print("NAK received")
+                    # print("NAK received")
                 elif response_p.seq_num < self.seq_num:
                     # It's trying to send me data again
-                    print("Receiver ahead of sender")
+                    # print("Receiver ahead of sender")
                     test = Packet(response_p.seq_num, "1")
                     self.network.udt_send(test.get_byte_S())
             else:
                 self.byte_buffer = ''
-                print("Corrupted ACK")
+                # print("Corrupted ACK")
 
     def rdt_2_1_receive(self):
         ret_S = None
@@ -147,7 +147,7 @@ class RDT:
             if len(self.byte_buffer) < length:
                 break  # not enough bytes to read the whole packet
             if Packet.corrupt(self.byte_buffer):
-                print("Corrupt packet, sending NAK.")
+                # print("Corrupt packet, sending NAK.")
                 answer = Packet(self.seq_num, "0")
                 # print("NAK Packet: " + answer.get_byte_S())
                 self.network.udt_send(answer.get_byte_S())
@@ -155,11 +155,11 @@ class RDT:
                 # create packet from buffer content and add to return string
                 p = Packet.from_byte_S(self.byte_buffer[0:length])
                 if p.seq_num < self.seq_num:
-                    print('Already received packet.  ACK again.')
+                    # print('Already received packet.  ACK again.')
                     answer = Packet(p.seq_num, "1")
                     self.network.udt_send(answer.get_byte_S())
                 elif p.seq_num == self.seq_num:
-                    print('Received new.  Send ACK and increment seq.')
+                    # print('Received new.  Send ACK and increment seq.')
                     answer = Packet(self.seq_num, "1")
                     self.network.udt_send(answer.get_byte_S())
                     self.seq_num += 1
