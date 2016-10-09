@@ -140,24 +140,25 @@ class RDT:
             length = int(self.byte_buffer[:Packet.length_S_length])
             if len(self.byte_buffer) < length:
                 break  # not enough bytes to read the whole packet
-            # create packet from buffer content and add to return string
-            p = Packet.from_byte_S(self.byte_buffer[0:length])
             if Packet.corrupt(self.byte_buffer):
                 print("Corrupt packet, sending NAK.")
                 answer = Packet(self.seq_num, "0")
                 print("NAK Packet: " + answer.get_byte_S())
                 self.network.udt_send(answer.get_byte_S())
-            elif p.seq_num != self.seq_num:
-                print('Already received packet.  ACK again.')
-                answer = Packet(self.seq_num, "1")
-                self.network.udt_send(answer.get_byte_S())
-            elif p.seq_num == self.seq_num:
-                print('Received new.  Send ACK and increment seq.')
-                answer = Packet(self.seq_num, "1")
-                self.network.udt_send(answer.get_byte_S())
-                self.toggle_seq()
+            else:
+                # create packet from buffer content and add to return string
+                p = Packet.from_byte_S(self.byte_buffer[0:length])
+                if p.seq_num != self.seq_num:
+                    print('Already received packet.  ACK again.')
+                    answer = Packet(self.seq_num, "1")
+                    self.network.udt_send(answer.get_byte_S())
+                elif p.seq_num == self.seq_num:
+                    print('Received new.  Send ACK and increment seq.')
+                    answer = Packet(self.seq_num, "1")
+                    self.network.udt_send(answer.get_byte_S())
+                    self.toggle_seq()
 
-            ret_S = p.msg_S if (ret_S is None) else ret_S + p.msg_S
+                ret_S = p.msg_S if (ret_S is None) else ret_S + p.msg_S
             # remove the packet bytes from the buffer
             self.byte_buffer = self.byte_buffer[length:]
             # if this was the last packet, will return on the next iteration
