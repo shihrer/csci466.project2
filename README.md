@@ -33,10 +33,10 @@ To run the starting code you may run:
 
  Be sure to start the server first, to allow it to start listening on a socket, and start the client soon after, before the server times out.
  
- ## BONUS 1
+ ##BONUS 1
 
  The network layer may also reorder packets.  If you set `prob_pkt_reorder` to a non-zero probability you will start seeing packets that are reordered.  I will award one bonus point to any group that implements RDT 3.1, which delivers packets in the correct order.
  
- ## BONUS 2
+ ##BONUS 2
 
  The RDT 3.1 is a stop and wait protocol.  I will award one bonus point to any group that implements RDT 4.0 - a pipelined reliable data transmission protocol based on either Go-back-N (GBN), or Selective Repeat (SR) mechanisms.
