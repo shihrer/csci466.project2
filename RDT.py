@@ -5,9 +5,12 @@ from time import sleep
 import hashlib
 
 debug = False
+
+
 def debug_log(message):
     if debug:
         print(message)
+
 
 class Packet:
     # the number of bytes used to store packet length
@@ -47,7 +50,8 @@ class Packet:
         # extract the fields
         length_S = byte_S[0:Packet.length_S_length]
         seq_num_S = byte_S[Packet.length_S_length: Packet.seq_num_S_length + Packet.seq_num_S_length]
-        checksum_S = byte_S[Packet.seq_num_S_length + Packet.seq_num_S_length: Packet.seq_num_S_length + Packet.length_S_length + Packet.checksum_length]
+        checksum_S = byte_S[
+                     Packet.seq_num_S_length + Packet.seq_num_S_length: Packet.seq_num_S_length + Packet.length_S_length + Packet.checksum_length]
         msg_S = byte_S[Packet.seq_num_S_length + Packet.seq_num_S_length + Packet.checksum_length:]
 
         # compute the checksum locally
@@ -63,9 +67,9 @@ class Packet:
 
 
 class RDT:
-    ## latest sequence number used in a packet
+    # latest sequence number used in a packet
     seq_num = 0
-    ## buffer of bytes read from network
+    # buffer of bytes read from network
     byte_buffer = ''
     timeout = 3
 
@@ -74,16 +78,6 @@ class RDT:
 
     def disconnect(self):
         self.network.disconnect()
-
-    def response(self):
-        answer = False
-        byte_response = self.network.udt_receive()
-        garble = Packet.corrupt(byte_response)
-        if not garble:
-            p = Packet.from_byte_S(byte_response)
-            if p.msg_S is "1":
-                answer = True
-        return answer, garble
 
     def rdt_1_0_send(self, msg_S):
         p = Packet(self.seq_num, msg_S)
@@ -105,7 +99,7 @@ class RDT:
                 break  # not enough bytes to read the whole packet
             # create packet from buffer content and add to return string
             p = Packet.from_byte_S(self.byte_buffer[0:length])
-            ret_S = p.msg_S #if (ret_S is None) else ret_S + p.msg_S
+            ret_S = p.msg_S  # if (ret_S is None) else ret_S + p.msg_S
             # remove the packet bytes from the buffer
             self.byte_buffer = self.byte_buffer[length:]
             # if this was the last packet, will return on the next iteration
@@ -124,24 +118,22 @@ class RDT:
 
             msg_length = int(response[:Packet.length_S_length])
             self.byte_buffer = response[msg_length:]
-            # print("Buffer: " + self.byte_buffer)
-            # print("Received response: " + response)
             if not Packet.corrupt(response[:msg_length]):
                 response_p = Packet.from_byte_S(response[:msg_length])
-                if response_p.msg_S is "1":
-                    # print("Received ACK, move on to next.")
-                    self.seq_num += 1
-                elif response_p.msg_S is "0":
-                    self.byte_buffer = ''
-                    # print("NAK received")
-                elif response_p.seq_num < self.seq_num:
+                if response_p.seq_num < self.seq_num:
                     # It's trying to send me data again
-                    # print("Receiver ahead of sender")
+                    debug_log("SENDER: Receiver behind sender")
                     test = Packet(response_p.seq_num, "1")
                     self.network.udt_send(test.get_byte_S())
+                elif response_p.msg_S is "1":
+                    debug_log("SENDER: Received ACK, move on to next.")
+                    self.seq_num += 1
+                elif response_p.msg_S is "0":
+                    debug_log("SENDER: NAK received")
+                    self.byte_buffer = ''
             else:
+                debug_log("SENDER: Corrupted ACK")
                 self.byte_buffer = ''
-                # print("Corrupted ACK")
 
     def rdt_2_1_receive(self):
         ret_S = None
@@ -158,23 +150,27 @@ class RDT:
             length = int(self.byte_buffer[:Packet.length_S_length])
             if len(self.byte_buffer) < length:
                 break  # not enough bytes to read the whole packet
+
+            # Check if packet is corrupt
             if Packet.corrupt(self.byte_buffer):
-                # print("Corrupt packet, sending NAK.")
+                # Send a NAK
+                debug_log("RECEIVER: Corrupt packet, sending NAK.")
                 answer = Packet(self.seq_num, "0")
-                # print("NAK Packet: " + answer.get_byte_S())
                 self.network.udt_send(answer.get_byte_S())
             else:
-                # create packet from buffer content and add to return string
+                # create packet from buffer content
                 p = Packet.from_byte_S(self.byte_buffer[0:length])
                 if p.is_ack_pack():
                     self.byte_buffer = self.byte_buffer[length:]
                     continue
                 if p.seq_num < self.seq_num:
-                    # print('Already received packet.  ACK again.')
+                    debug_log('RECEIVER: Already received packet.  ACK again.')
+                    # Send another ACK
                     answer = Packet(p.seq_num, "1")
                     self.network.udt_send(answer.get_byte_S())
                 elif p.seq_num == self.seq_num:
-                    # print('Received new.  Send ACK and increment seq.')
+                    debug_log('RECEIVER: Received new.  Send ACK and increment seq.')
+                    # SEND ACK
                     answer = Packet(self.seq_num, "1")
                     self.network.udt_send(answer.get_byte_S())
                     self.seq_num += 1
@@ -214,11 +210,11 @@ class RDT:
                     debug_log("SENDER: Received ACK, move on to next.")
                     self.seq_num += 1
                 elif response_p.msg_S is "0":
-                    self.byte_buffer = ''
                     debug_log("SENDER: NAK received")
+                    self.byte_buffer = ''
             else:
-                self.byte_buffer = ''
                 debug_log("SENDER: Corrupted ACK")
+                self.byte_buffer = ''
 
     def rdt_3_0_receive(self):
         ret_S = None
@@ -266,6 +262,7 @@ class RDT:
             self.byte_buffer = self.byte_buffer[length:]
             # if this was the last packet, will return on the next iteration
         return ret_S
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='RDT implementation.')
