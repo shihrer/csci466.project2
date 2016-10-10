@@ -24,7 +24,7 @@ The starting code for this project (**prog2.zip** in the D2L content area) provi
 
 The client sends messages to the server, which converts them to pig latin, and transmits them back. The client and the server send messages to each other through the transport layer provided by an RDT implementation using the `rdt10send` and `rdt10receive` functions.  The starting `rdt.py` provides only the RDT 1.0 version of the protocol, which does not tolerate packet corruption, or loss.  The RDT protocol uses `udtsend` and `udtreceive` provided by `network.py` to transfer bytes between the client and server machines.  The network layer may corrupt packets or lose packets altogether.  `rdt.py` relies on the `Packet` class (in the same file) to form transport layer packets.  Your job will be to extend `rdt.py` to tolerate packet corruption and loss.  The provided code lists prototype send and receive functions for those protocols.  You may need to modify/extend the `Packet` class to transmit the necessary information for these functions to work correctly.  The provided implementation of `network.py` is reliable, but we will test your code with non-zero probability for packet corruption and loss by changing the values of `prob_pkt_loss` and `prob_byte_corr` of the `NetworkLayer` class.  You may change those variables yourself to test your code.
 
-Program Invocation
+## Program Invocation
 
 To run the starting code you may run:
 
