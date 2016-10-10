@@ -43,7 +43,7 @@ if __name__ == '__main__':
                 print('to: ' + msg_S + '\n')
     except (KeyboardInterrupt, SystemExit):
         print("Ending connection...")
-    except (BrokenPipeError, ConnectionAbortedError):
+    except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
         print("Ending connection...")
     finally:
         rdt.disconnect()
