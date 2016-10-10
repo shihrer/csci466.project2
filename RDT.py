@@ -196,6 +196,9 @@ class RDT:
 
             if response == '':
                 continue
+
+            debug_log("SENDER: " + response)
+
             msg_length = int(response[:Packet.length_S_length])
             self.byte_buffer = response[msg_length:]
 
@@ -208,6 +211,7 @@ class RDT:
                     self.network.udt_send(test.get_byte_S())
                 elif response_p.msg_S is "1":
                     debug_log("SENDER: Received ACK, move on to next.")
+                    debug_log("SENDER: Incrementing seq_num from {} to {}".format(self.seq_num, self.seq_num + 1))
                     self.seq_num += 1
                 elif response_p.msg_S is "0":
                     debug_log("SENDER: NAK received")
@@ -255,6 +259,7 @@ class RDT:
                     # SEND ACK
                     answer = Packet(self.seq_num, "1")
                     self.network.udt_send(answer.get_byte_S())
+                    debug_log("RECEIVER: Incrementing seq_num from {} to {}".format(self.seq_num, self.seq_num + 1))
                     self.seq_num += 1
                 # Add contents to return string
                 ret_S = p.msg_S if (ret_S is None) else ret_S + p.msg_S
