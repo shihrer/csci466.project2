@@ -30,7 +30,7 @@ To run the starting code you may run:
 
     python server.py 5000
     python client.py localhost 5000
-    
+
  Be sure to start the server first, to allow it to start listening on a socket, and start the client soon after, before the server times out.
  
  ## BONUS 1
