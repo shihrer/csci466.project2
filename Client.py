@@ -15,7 +15,7 @@ if __name__ == '__main__':
         'Grove giveth and Gates taketh away. -- Bob Metcalfe (inventor of Ethernet) on the trend of hardware speedups not being able to keep up with software demands',
         'Wise men make proverbs, but fools repeat them. -- Samuel Palmer (1805-80)']
 
-    timeout = 100  # send the next message if not response
+    timeout = 1000  # send the next message if not response
     time_of_last_data = time.time()
     rdt = RDT.RDT('client', args.server, args.port)
     try:
