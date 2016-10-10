@@ -15,19 +15,21 @@ if __name__ == '__main__':
         'Grove giveth and Gates taketh away. -- Bob Metcalfe (inventor of Ethernet) on the trend of hardware speedups not being able to keep up with software demands',
         'Wise men make proverbs, but fools repeat them. -- Samuel Palmer (1805-80)']
 
-    timeout = 50  # send the next message if not response
+    timeout = 10  # send the next message if not response
     time_of_last_data = time.time()
     rdt = RDT.RDT('client', args.server, args.port)
     try:
         for msg_S in msg_L:
             print('Converting: ' + msg_S)
             # rdt.rdt_1_0_send(msg_S)
+            # rdt.rdt_2_1_send(msg_S)
             rdt.rdt_3_0_send(msg_S)
 
             # try to receive message before timeout
             msg_S = None
             while msg_S == None:
                 # msg_S = rdt.rdt_1_0_receive()
+                # msg_S = rdt.rdt_2_1_receive()
                 msg_S = rdt.rdt_3_0_receive()
                 if msg_S is None:
                     if time_of_last_data + timeout < time.time():
@@ -40,7 +42,9 @@ if __name__ == '__main__':
             if msg_S:
                 print('to: ' + msg_S + '\n')
     except (KeyboardInterrupt, SystemExit):
-        raise
-    finally:
         print("Ending connection...")
+    except (BrokenPipeError, ConnectionAbortedError):
+        print("Ending connection...")
+    finally:
         rdt.disconnect()
+        print("Connection ended.")
