@@ -178,19 +178,14 @@ class RDT:
         while current_seq == self.seq_num:
             # print('Sending packet')
             self.network.udt_send(p.get_byte_S())
-            response = None
+            response = ''
             timer = time.time()
-            overtime = False
-            while not response:
+            while response == '':
                 response = self.network.udt_receive()
-                if response:
-                    break
                 timer2 = time.time()
-                if timer + 1 < timer2:
-                    overtime = True
+                if response == '' and timer + 3 < timer2:
                     break
-            if overtime:
-                self.byte_buffer = ''
+            if response == '':
                 continue
             msg_length = int(response[:Packet.length_S_length])
             self.byte_buffer = response[msg_length:]
