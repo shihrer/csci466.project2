@@ -58,7 +58,7 @@ class RDT:
     seq_num = 0
     ## buffer of bytes read from network
     byte_buffer = ''
-    timeout = 2
+    timeout = 3
 
     def __init__(self, role_S, server_S, port):
         self.network = Network.NetworkLayer(role_S, server_S, port)
