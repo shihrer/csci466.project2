@@ -58,6 +58,7 @@ class RDT:
     seq_num = 0
     ## buffer of bytes read from network
     byte_buffer = ''
+    timeout = 2
 
     def __init__(self, role_S, server_S, port):
         self.network = Network.NetworkLayer(role_S, server_S, port)
@@ -108,8 +109,8 @@ class RDT:
         while current_seq == self.seq_num:
             # print('Sending packet')
             self.network.udt_send(p.get_byte_S())
-            response = None
-            while not response:
+            response = ''
+            while response == '':
                 response = self.network.udt_receive()
             msg_length = int(response[:Packet.length_S_length])
             self.byte_buffer = response[msg_length:]
@@ -180,11 +181,9 @@ class RDT:
             self.network.udt_send(p.get_byte_S())
             response = ''
             timer = time.time()
-            while response == '':
+            while response == '' and timer + self.timeout > time.time():
                 response = self.network.udt_receive()
-                timer2 = time.time()
-                if response == '' and timer + 3 < timer2:
-                    break
+
             if response == '':
                 continue
             msg_length = int(response[:Packet.length_S_length])
