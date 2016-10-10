@@ -116,11 +116,12 @@ class RDT:
         current_seq = self.seq_num
 
         while current_seq == self.seq_num:
-            # print('Sending packet')
             self.network.udt_send(p.get_byte_S())
             response = ''
+
             while response == '':
                 response = self.network.udt_receive()
+
             msg_length = int(response[:Packet.length_S_length])
             self.byte_buffer = response[msg_length:]
             # print("Buffer: " + self.byte_buffer)
@@ -189,10 +190,11 @@ class RDT:
         current_seq = self.seq_num
 
         while current_seq == self.seq_num:
-            # print('Sending packet')
             self.network.udt_send(p.get_byte_S())
             response = ''
             timer = time.time()
+
+            # Waiting for ack/nak
             while response == '' and timer + self.timeout > time.time():
                 response = self.network.udt_receive()
 
@@ -200,8 +202,7 @@ class RDT:
                 continue
             msg_length = int(response[:Packet.length_S_length])
             self.byte_buffer = response[msg_length:]
-            # print("Buffer: " + self.byte_buffer)
-            # print("Received response: " + response)
+
             if not Packet.corrupt(response[:msg_length]):
                 response_p = Packet.from_byte_S(response[:msg_length])
                 if response_p.seq_num < self.seq_num:
